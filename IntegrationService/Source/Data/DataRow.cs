@@ -1,10 +1,11 @@
 using System;
+using System.Collections.Generic;
 
 namespace SwarmDL.Data
 {
     public record DataRow
     {
-        public dynamic Input { get; init; }
-        public dynamic Output { get; init; }
+        public IReadOnlyList<double> Input { get; init; }
+        public IReadOnlyList<double> Output { get; init; }
     }
 }

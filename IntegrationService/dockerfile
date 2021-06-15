@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+WORKDIR /IntegrationService
+
+COPY Source/. ./source/
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
+RUN dotnet publish \
+    -c Release \
+    -o ./publish/ \
+    source
+
+FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS prod
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
+WORKDIR /IntegrationService
+COPY --from=build /IntegrationService/publish/ .
+EXPOSE 5000
+EXPOSE 5001
+ENTRYPOINT ["dotnet", "./IntegrationService.dll" ]

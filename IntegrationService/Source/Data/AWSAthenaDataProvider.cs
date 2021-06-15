@@ -10,6 +10,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Options;
+using System.Reactive.Concurrency;
+using Newtonsoft.Json;
 
 [assembly: InternalsVisibleTo("IntegrationServiceTests")]
 namespace SwarmDL.Data
@@ -94,18 +96,20 @@ namespace SwarmDL.Data
 
         internal IObservable<QueryExecution> PollForQueryResult(StartQueryExecutionResponse response)
         {
-            return Observable.Repeat(
-                Observable.FromAsync(
-                    cancel => Client.GetQueryExecutionAsync(
-                        new GetQueryExecutionRequest()
-                        {
-                            QueryExecutionId = response.QueryExecutionId
-                        },
-                        cancel
-                    )
-                ).Select(r => r.QueryExecution)
-                .Do(LogQueryExecution)  
+            return Observable.FromAsync(
+                cancel => Client.GetQueryExecutionAsync(
+                    new GetQueryExecutionRequest()
+                    {
+                        QueryExecutionId = response.QueryExecutionId
+                    },
+                    cancel
+                ),
+                Scheduler.Default //! If another scheduler is used, this method will never complete
+                //* See (https://github.com/dotnet/reactive/issues/42)
             )
+            .Repeat()
+            .Select(r => r.QueryExecution)
+            .Do(LogQueryExecution)
             .Where(CheckQueryFinished)
             .FirstAsync();
         }
@@ -140,16 +144,23 @@ namespace SwarmDL.Data
             .SelectMany(queryResult => GetResultsFrom(queryResult))
             .Select(result => result.ResultSet)
             .SelectMany(result =>
-                result.Rows.Select(row =>
+                result.Rows.Skip(1).Select(row =>
                     row.Data.Zip(
                         result.ResultSetMetadata.ColumnInfo,
                         (v, c) => (c.Type, c.Name, Value: v.VarCharValue)
+                    ).ToDictionary(
+                        kv => kv.Name.ToLowerInvariant(),
+                        kv => kv.Type switch {
+                            "map" => kv.Value,
+                            _ => JsonConvert.DeserializeObject<dynamic>(kv.Value)
+                        }
                     )
                 ).ToObservable()
             )
             .Select(r => new DataRow()
             {
-                Input = r
+                Input = r["input"].ToObject<List<double>>(),
+                Output = r["output"].ToObject<List<double>>(),
             });
         }
     }
