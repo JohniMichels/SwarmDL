@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace SwarmDL
 {
@@ -21,6 +22,12 @@ namespace SwarmDL
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                    webBuilder.UseSerilog(
+                        (context, config) =>
+                        {
+                            config.ReadFrom.Configuration(context.Configuration);
+                        }
+                    );
                 });
     }
 }

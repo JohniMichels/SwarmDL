@@ -14,4 +14,4 @@ WORKDIR /IntegrationService
 COPY --from=build /IntegrationService/publish/ .
 EXPOSE 5000
 EXPOSE 5001
-ENTRYPOINT ["dotnet", "./IntegrationService.dll" ]
+ENTRYPOINT ["dotnet", "./IntegrationService.dll", "--server.urls", "http://*:5000;https://*:5001" ]
